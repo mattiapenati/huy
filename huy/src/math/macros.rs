@@ -199,6 +199,195 @@ macro_rules! impl_vector_space {
     };
 }
 
+macro_rules! impl_vector_norms {
+    (
+        $name:ident {
+            $x0:ident $(, $xi:ident)*
+        }
+    ) => {
+        impl<T: Field> $name<T> {
+            /// Computes the dot product between `self` and `other`.
+            #[inline]
+            pub fn dot(self, other: Self) -> T {
+                self.$x0.conj() * other.$x0 $(+ self.$xi.conj() * other.$xi)*
+            }
+
+            /// Computes the squared norm of `self`.
+            #[inline]
+            pub fn norm_square(self) -> T::Real {
+                self.$x0.abs_square() $(+ self.$xi.abs_square())*
+            }
+
+            /// Computes the norm of `self`.
+            #[inline]
+            pub fn norm(self) -> T::Real {
+                let max = self.norm_linf();
+                max * ((self.$x0 / max).abs_square() $(+ (self.$xi / max).abs_square())*).sqrt()
+            }
+
+            /// Compute the taxicab norm of `self`.
+            /// See [norm (mathematics)](https://en.wikipedia.org/wiki/Norm_(mathematics)#p-norm).
+            #[inline]
+            pub fn norm_l1(self) -> T::Real {
+                self.$x0.abs() $(+ self.$xi.abs())*
+            }
+
+            /// Compute the maximum norm of `self`.
+            /// See [norm (mathematics)](https://en.wikipedia.org/wiki/Norm_(mathematics)#p-norm).
+            #[inline]
+            pub fn norm_linf(self) -> T::Real {
+                let max = self.$x0.abs();
+                $(let max = T::Real::max(max, self.$xi.abs());)*
+                max
+            }
+
+            /// Returns `self` with norm equal to 1.
+            #[inline]
+            pub fn unit(self) -> Self {
+                let norm = self.norm();
+                Self {
+                    $x0: self.$x0 / norm,
+                    $($xi: self.$xi / norm,)*
+                }
+            }
+
+            /// Returns `self` with norm equal to 1 if possible, else `None`.
+            #[inline]
+            pub fn try_unit(self) -> Option<Self> {
+                let norm = self.norm();
+                (norm > <T::Real as Field>::ZERO).then(|| Self {
+                    $x0: self.$x0 / norm,
+                    $($xi: self.$xi / norm,)*
+                })
+            }
+
+            /// Returns `self` with norm equal to 1 if possible, else the fallback value.
+            #[inline]
+            pub fn unit_or(self, fallback: Self) -> Self {
+                self.try_unit().unwrap_or(fallback)
+            }
+
+            /// Returns `self` with norm equal to 1 if possible, else zero.
+            #[inline]
+            pub fn unit_or_zero(self) -> Self {
+                self.try_unit().unwrap_or(Self::ZERO)
+            }
+
+        }
+    };
+}
+
+macro_rules! impl_complex_vector {
+    (
+        $name:ident { $($xi:ident),* $(,)? }
+    ) => {
+        impl<T: RealField> core::ops::Mul<T> for $name<Complex<T>> {
+            type Output = $name<Complex<T>>;
+
+            #[inline]
+            fn mul(self, rhs: T) -> Self::Output {
+                $name { $($xi: self.$xi * rhs),* }
+            }
+        }
+
+        impl<T: RealField> core::ops::Div<T> for $name<Complex<T>> {
+            type Output = $name<Complex<T>>;
+
+            #[inline]
+            fn div(self, rhs: T) -> Self::Output {
+                $name { $($xi: self.$xi / rhs),* }
+            }
+        }
+
+        impl<T: RealField> core::ops::MulAssign<T> for $name<Complex<T>> {
+            #[inline]
+            fn mul_assign(&mut self, rhs: T) {
+                $(self.$xi = self.$xi * rhs;)*
+            }
+        }
+
+        impl<T: RealField> core::ops::DivAssign<T> for $name<Complex<T>> {
+            #[inline]
+            fn div_assign(&mut self, rhs: T) {
+                $(self.$xi = self.$xi / rhs;)*
+            }
+        }
+
+        impl<T: RealField> $name<Complex<T>> {
+            /// Returns a real vector with the real part of each component.
+            #[inline]
+            pub fn real(self) -> $name<T> {
+                $name { $($xi: self.$xi.real),* }
+            }
+
+            /// Returns a real vector with the imaginary part of each component.
+            #[inline]
+            pub fn imag(self) -> $name<T> {
+                $name { $($xi: self.$xi.imag),* }
+            }
+        }
+
+        impl<T: RealField> $name<T> {
+            /// Construct a new vector with complex components from a real one.
+            pub fn to_complex(self) -> $name<Complex<T>> {
+                $name { $($xi: self.$xi.into()),* }
+            }
+        }
+    };
+}
+
+macro_rules! impl_vector_ops_for_float {
+    (
+        $name:ident { $($xi:ident),* $(,)? }
+    ) => {
+        impl $name<f32> {
+            /// Cast to [`f64`].
+            #[inline]
+            pub fn to_f64(self) -> $name<f64> {
+                $name { $($xi: self.$xi as f64,)* }
+            }
+        }
+
+        impl $name<f64> {
+            /// Cast to [`f32`].
+            #[inline]
+            pub fn to_f32(self) -> $name<f32> {
+                $name { $($xi: self.$xi as f32,)* }
+            }
+        }
+
+        impl From<$name<f32>> for $name<f64> {
+            #[inline]
+            fn from(value: $name<f32>) -> Self {
+                value.to_f64()
+            }
+        }
+
+        impl $name<Complex<f32>> {
+            /// Cast to [`f64`].
+            #[inline]
+            pub fn to_f64(self) -> $name<Complex<f64>> {
+                $name { $($xi: self.$xi.to_f64(),)* }
+            }
+        }
+
+        impl $name<Complex<f64>> {
+            /// Cast to [`f32`].
+            #[inline]
+            pub fn to_f32(self) -> $name<Complex<f32>> {
+                $name { $($xi: self.$xi.to_f32(),)* }
+            }
+        }
+
+        impl From<$name<Complex<f32>>> for $name<Complex<f64>> {
+            #[inline]
+            fn from(value: $name<Complex<f32>>) -> Self {
+                value.to_f64()
+            }
+        }
+    };
+}
+
 macro_rules! impl_multiplicative_group {
     (
         impl $name:ident<$field:ident: $trait:ident> {
@@ -261,5 +450,44 @@ macro_rules! impl_multiplicative_group {
     };
 }
 
+macro_rules! impl_aggregate_conversion {
+    (From<[$fromTy:ident; $n:expr]> for $name:ident<$field:ident: $trait:ident> { $($xi:ident),+ }) => {
+        impl<$field: $trait> From<[$fromTy; $n]> for $name<$field> {
+            #[inline]
+            fn from(value: [$fromTy; $n]) -> Self {
+                let [$($xi),+] = value;
+                $name{ $($xi),+ }
+            }
+        }
+
+        impl<$field: $trait> From<$name<$field>> for [$fromTy; $n] {
+            #[inline]
+            fn from(value: $name<$field>) -> Self {
+                [$(value.$xi),+]
+            }
+        }
+    };
+    (From<($($xiTy:ident),+)> for $name:ident<$field:ident: $trait:ident> { $($xi:ident),+ }) => {
+        impl<$field: $trait> From<($($xiTy),+)> for $name<$field> {
+            #[inline]
+            fn from(value: ($($xiTy),+)) -> Self {
+                let ($($xi),+) = value;
+                $name{ $($xi),+ }
+            }
+        }
+
+        impl<$field: $trait> From<$name<$field>> for ($($xiTy),+) {
+            #[inline]
+            fn from(value: $name<$field>) -> Self {
+                ($(value.$xi),+)
+            }
+        }
+    }
+}
+
+pub(super) use impl_aggregate_conversion;
+pub(super) use impl_complex_vector;
 pub(super) use impl_multiplicative_group;
+pub(super) use impl_vector_norms;
+pub(super) use impl_vector_ops_for_float;
 pub(super) use impl_vector_space;

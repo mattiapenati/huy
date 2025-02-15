@@ -1,5 +1,7 @@
 use core::ops::{Add, Div, Mul, Neg, Sub};
 
+use super::Complex;
+
 /// A trait for a type that can represent a real number.
 pub trait RealField:
     Copy
@@ -105,6 +107,12 @@ pub trait RealField:
 
     /// Takes the reciprocal of a number.
     fn recip(self) -> Self;
+
+    /// Returns the square root of the number.
+    fn sqrt(self) -> Self;
+
+    /// Returns the maximum of the two numbers.
+    fn max(self, other: Self) -> Self;
 }
 
 macro_rules! forward {
@@ -149,6 +157,8 @@ macro_rules! impl_real_field_for_float {
                 fn atan2(y: Self, x: Self) -> Self;
                 fn rem_euclid(self, rhs: Self) -> Self;
                 fn recip(self) -> Self;
+                fn sqrt(self) -> Self;
+                fn max(self, other: Self) -> Self;
             }
         }
     };
@@ -157,9 +167,120 @@ macro_rules! impl_real_field_for_float {
 impl_real_field_for_float!(f32);
 impl_real_field_for_float!(f64);
 
+/// A trait for a type that can represent a number (real or complex).
+pub trait Field:
+    Copy
+    + Neg<Output = Self>
+    + Add<Output = Self>
+    + Add<Self::Real, Output = Self>
+    + Div<Output = Self>
+    + Div<Self::Real, Output = Self>
+    + Mul<Output = Self>
+    + Mul<Self::Real, Output = Self>
+    + Sub<Output = Self>
+    + Sub<Self::Real, Output = Self>
+    + PartialEq
+    + From<Self::Real>
+    + sealed::Field
+{
+    type Real: RealField;
+
+    /// The additive identity element.
+    const ZERO: Self;
+
+    /// The multiplicative identity element.
+    const ONE: Self;
+
+    /// Returns `true` if the number is Nan.
+    fn is_nan(self) -> bool;
+
+    /// Returns the complex conjugate.
+    fn conj(self) -> Self;
+
+    /// Returns the real part of the number.
+    fn real(self) -> Self::Real;
+
+    /// Returns the imaginary part of the number.
+    fn imag(self) -> Self::Real;
+
+    /// Computes the absolute value of the complex number.
+    fn abs(self) -> Self::Real;
+
+    /// Computes the square of absolute value of the complex number.
+    fn abs_square(self) -> Self::Real;
+}
+
+impl<T: RealField> Field for T {
+    type Real = Self;
+
+    const ZERO: Self = <Self as RealField>::ZERO;
+    const ONE: Self = <Self as RealField>::ONE;
+
+    #[inline]
+    fn is_nan(self) -> bool {
+        self.is_nan()
+    }
+
+    #[inline]
+    fn conj(self) -> Self {
+        self
+    }
+
+    #[inline]
+    fn real(self) -> Self::Real {
+        self
+    }
+
+    #[inline]
+    fn imag(self) -> Self::Real {
+        Self::ZERO
+    }
+
+    #[inline]
+    fn abs(self) -> Self::Real {
+        self.abs()
+    }
+
+    #[inline]
+    fn abs_square(self) -> Self::Real {
+        self * self
+    }
+}
+
+impl<T: RealField> Field for Complex<T> {
+    type Real = T;
+
+    const ZERO: Self = Complex::ZERO;
+    const ONE: Self = Complex::ONE;
+
+    forward! {
+        fn is_nan(self) -> bool;
+        fn conj(self) -> Self;
+        fn abs(self) -> T;
+        fn abs_square(self) -> T;
+    }
+
+    #[inline]
+    fn real(self) -> T {
+        self.real
+    }
+
+    #[inline]
+    fn imag(self) -> T {
+        self.imag
+    }
+}
+
 mod sealed {
+    use super::Complex;
+
     pub trait RealField {}
 
     impl RealField for f32 {}
     impl RealField for f64 {}
+
+    pub trait Field {}
+
+    impl<T: super::RealField> Field for T {}
+    impl<T: super::RealField> Field for Complex<T> {}
 }
