@@ -3,7 +3,7 @@ use core::{
     ops::{Add, AddAssign, Sub, SubAssign},
 };
 
-use super::{macros::*, RealField};
+use super::{macros::*, Angle, RealField};
 
 /// Create a new [`Complex`] from real and imaginary parts.
 #[inline]
@@ -32,6 +32,19 @@ impl_vector_space! {
             Self { real, imag }
         }
 
+        /// Creates a new complex number with the given phase.
+        /// See [cis (mathematics)](https://en.wikipedia.org/wiki/Cis_(mathematics)).
+        #[inline]
+        pub fn cis(arg: Angle<T>) -> Self {
+            Self::new(arg.cos(), arg.sin())
+        }
+
+        /// Creates a new complex number from its polar representation.
+        #[inline]
+        pub fn from_polar(abs: T, arg: Angle<T>) -> Self {
+            Self::new(abs * arg.cos(), abs * arg.sin())
+        }
+
         /// Performs a linear interpolation between `self`` and `rhs`.
         #[inline]
         pub fn lerp(self, other: Self, s: T) -> Self {
@@ -57,6 +70,12 @@ impl_vector_space! {
         #[inline]
         pub fn abs_square(self) -> T {
             self.real * self.real +  self.imag * self.imag
+        }
+
+        /// Computes the argument of the complex number.
+        #[inline]
+        pub fn arg(self) -> Angle<T> {
+            Angle::atan2(self.imag, self.real)
         }
     }
 }
@@ -323,6 +342,31 @@ mod tests {
             }
 
             #[test]
+            fn cis() {
+                use crate::assert_almost_eq;
+
+                assert_almost_eq!(
+                    Complex::<$ty>::cis(Angle::STRAIGHT / 3.0),
+                    Complex::<$ty>::new(0.5, (0.75 as $ty).sqrt())
+                );
+                assert_almost_eq!(Complex::<$ty>::cis(Angle::STRAIGHT / 3.0).abs(), 1.0);
+            }
+
+            #[test]
+            fn from_polar() {
+                use crate::assert_almost_eq;
+
+                assert_almost_eq!(
+                    Complex::<$ty>::from_polar(2.0, Angle::STRAIGHT / 3.0),
+                    Complex::<$ty>::new(1.0, (3.0 as $ty).sqrt())
+                );
+                assert_almost_eq!(
+                    Complex::<$ty>::from_polar(2.0, Angle::STRAIGHT / 3.0).abs(),
+                    2.0
+                );
+            }
+
+            #[test]
             fn conj() {
                 assert_eq!(
                     Complex::<$ty>::new(1.0, 2.0).conj(),
@@ -338,6 +382,16 @@ mod tests {
             fn abs() {
                 assert_eq!(Complex::<$ty>::new(0.3, 0.4).abs(), 0.5 as $ty);
                 assert_eq!(Complex::<$ty>::new(0.3, 0.4).abs_square(), 0.25 as $ty);
+            }
+
+            #[test]
+            fn arg() {
+                use crate::assert_almost_eq;
+
+                assert_almost_eq!(
+                    Complex::<$ty>::new(1.0, (3.0 as $ty).sqrt()).arg(),
+                    Angle::<$ty>::STRAIGHT / 3.0
+                );
             }
 
             #[test]
