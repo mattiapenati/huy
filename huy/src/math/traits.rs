@@ -20,6 +20,9 @@ pub trait RealField:
     /// The multiplicative identity element.
     const ONE: Self;
 
+    /// The fraction 1/2.
+    const FRAC_1_2: Self;
+
     /// The value π/2.
     const FRAC_PI_2: Self;
 
@@ -138,6 +141,7 @@ macro_rules! impl_real_field_for_float {
         impl RealField for $ty {
             const ZERO: Self = 0.0;
             const ONE: Self = 1.0;
+            const FRAC_1_2: Self = 0.5;
             const FRAC_PI_2: Self = core::$ty::consts::FRAC_PI_2;
             const PI: Self = core::$ty::consts::PI;
             const TAU: Self = core::$ty::consts::TAU;

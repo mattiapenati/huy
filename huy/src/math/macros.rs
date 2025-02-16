@@ -485,6 +485,156 @@ macro_rules! impl_aggregate_conversion {
     }
 }
 
+macro_rules! impl_affine_space {
+    (
+        $(#[$meta:meta])*
+        $vis:vis struct $name:ident<$field:ident: $trait:ident>
+        where
+            Vector: $vector:ident
+        {
+            $(#[$x0Meta:meta])*
+            $x0Vis:vis $x0:ident: $x0Ty:ty,
+            $(
+                $(#[$xiMeta:meta])*
+                $xiVis:vis $xi:ident: $xiTy:ty,
+            )*
+        }
+
+        $(
+            impl<$implField:ident: $implTrait:ident> $implName:ident<$implField2:ident> {
+                $($implBody:tt)*
+            }
+        )?
+    ) => {
+        $(#[$meta])*
+        $vis struct $name<$field: $trait> {
+            $(#[$x0Meta])*
+            $x0Vis $x0: $x0Ty,
+            $(
+                $(#[$xiMeta])*
+                $xiVis $xi: $xiTy,
+            )*
+        }
+
+        impl<$field: $trait> $name<$field> {
+            /// The point with all coordinates equal to zero.
+            pub const ORIGIN: Self = Self { $x0: <$x0Ty>::ZERO $(, $xi: <$xiTy>::ZERO)* };
+
+            /// Creates a new point from the coordinates.
+            #[inline]
+            pub const fn new($x0: $x0Ty $(, $xi: $xiTy)*) -> Self {
+                Self { $x0 $(, $xi)* }
+            }
+
+            $($($implBody)*)?
+
+            /// Linearly interpolate between two points.
+            #[inline]
+            pub fn lerp(self, other: Self, s: $field) -> Self {
+                self + (other - self) * s
+            }
+
+            /// The midpoint of the line segment with given endpoints.
+            #[inline]
+            pub fn midpoint(self, other: Self) -> Self {
+                self.lerp(other, <$field>::FRAC_1_2)
+            }
+
+            /// Returns the distance between two points.
+            #[inline]
+            pub fn dist(self, other: Self) -> $field {
+                (self - other).norm()
+            }
+
+            /// Returns the squared distance between two points.
+            #[inline]
+            pub fn dist_square(self, other: Self) -> $field {
+                (self - other).norm_square()
+            }
+
+            /// Returns `true` if at least one coordinate is NaN.
+            #[inline]
+            pub fn is_nan(self) -> bool {
+                self.$x0.is_nan() $(|| self.$xi.is_nan())*
+            }
+        }
+
+        impl<$field: $trait> core::ops::Sub for $name<$field> {
+            type Output = $vector<$field>;
+
+            #[inline]
+            fn sub(self, rhs: Self) -> Self::Output {
+                $vector::new(self.$x0 - rhs.$x0 $(, self.$xi - rhs.$xi)*)
+            }
+        }
+
+        impl<$field: $trait> core::ops::Add<$vector<$field>> for $name<$field> {
+            type Output = $name<$field>;
+
+            #[inline]
+            fn add(self, rhs: $vector<$field>) -> Self::Output {
+                $name::new(self.$x0 + rhs.$x0 $(, self.$xi + rhs.$xi)*)
+            }
+        }
+
+        impl<$field: $trait> core::ops::Sub<$vector<$field>> for $name<$field> {
+            type Output = $name<$field>;
+
+            #[inline]
+            fn sub(self, rhs: $vector<$field>) -> Self::Output {
+                $name::new(self.$x0 - rhs.$x0 $(, self.$xi - rhs.$xi)*)
+            }
+        }
+
+        impl<$field: $trait> core::ops::AddAssign<$vector<$field>> for $name<$field> {
+            #[inline]
+            fn add_assign(&mut self, rhs: $vector<$field>) {
+                self.$x0 = self.$x0 + rhs.$x0;
+                $(self.$xi = self.$xi + rhs.$xi;)*
+            }
+        }
+
+        impl<$field: $trait> core::ops::SubAssign<$vector<$field>> for $name<$field> {
+            #[inline]
+            fn sub_assign(&mut self, rhs: $vector<$field>) {
+                self.$x0 = self.$x0 - rhs.$x0;
+                $(self.$xi = self.$xi - rhs.$xi;)*
+            }
+        }
+    };
+}
+
+macro_rules! impl_affine_space_ops_for_float {
+    (
+        $name:ident { $($xi:ident),* $(,)? }
+    ) => {
+        impl $name<f32> {
+            /// Cast to [`f64`].
+            #[inline]
+            pub fn to_f64(self) -> $name<f64> {
+                $name { $($xi: self.$xi as f64),* }
+            }
+        }
+
+        impl $name<f64> {
+            /// Cast to [`f32`].
+            #[inline]
+            pub fn to_f32(self) -> $name<f32> {
+                $name { $($xi: self.$xi as f32),* }
+            }
+        }
+
+        impl From<$name<f32>> for $name<f64> {
+            #[inline]
+            fn from(value: $name<f32>) -> Self {
+                $name { $($xi: value.$xi.into()),* }
+            }
+        }
+    };
+}
+
+pub(super) use impl_affine_space;
+pub(super) use impl_affine_space_ops_for_float;
 pub(super) use impl_aggregate_conversion;
 pub(super) use impl_complex_vector;
 pub(super) use impl_multiplicative_group;
