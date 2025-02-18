@@ -4,3 +4,12 @@ authors = ["Mattia Penati <mattia.penati@protonmail.com>"]
 edition = "2021"
 license = "MIT OR Apache-2.0"
 version = "0.1.0"
+
+[dev-dependencies]
+divan = { version = "0.1", default-features = false }
+fastrand = "2"
+rand = "0.9"
+
+[[bench]]
+name = "rand"
+harness = false
