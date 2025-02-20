@@ -1,3 +1,4 @@
+mod integer;
 mod random;
 mod rng;
 
