@@ -1,3 +1,4 @@
+mod float;
 mod integer;
 mod random;
 mod rng;

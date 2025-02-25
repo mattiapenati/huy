@@ -175,3 +175,34 @@ mod fill_random_i32 {
             });
     }
 }
+
+#[divan::bench_group]
+mod fill_random_f32 {
+    use divan::{counter::ItemsCount, Bencher};
+
+    const SIZE: usize = 1 << 18; // 1MB of f32
+
+    #[divan::bench]
+    fn huy(bencher: Bencher) {
+        use huy::rand::{fill_random, Rng};
+
+        bencher
+            .counter(ItemsCount::new(SIZE))
+            .with_inputs(|| (Rng::from_random_state(), vec![0.0f32; SIZE]))
+            .bench_local_values(|(mut rng, mut data)| {
+                fill_random(&mut rng, &mut data);
+            });
+    }
+
+    #[divan::bench]
+    fn rand(bencher: Bencher) {
+        use rand::{rngs::SmallRng, Rng, SeedableRng};
+
+        bencher
+            .counter(ItemsCount::new(SIZE))
+            .with_inputs(|| (SmallRng::from_os_rng(), vec![0.0f32; SIZE]))
+            .bench_local_values(|(mut rng, mut data)| {
+                rng.fill(&mut data[..]);
+            });
+    }
+}
