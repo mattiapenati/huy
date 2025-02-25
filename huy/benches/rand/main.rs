@@ -1,3 +1,4 @@
+mod random;
 mod rng;
 
 fn main() {
